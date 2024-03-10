@@ -27,7 +27,7 @@ class Linear(minitorch.Module):
         self.bias = RParam(out_size)
         self.out_size = out_size
 
-    def forward(self, x):
+    def forward(self, x) -> minitorch.Tensor:
         batch, in_size = x.shape
         return (
             x.view(batch, in_size) @ self.weights.value.view(in_size, self.out_size)
@@ -40,9 +40,9 @@ class Conv2d(minitorch.Module):
         self.weights = RParam(out_channels, in_channels, kh, kw)
         self.bias = RParam(out_channels, 1, 1)
 
-    def forward(self, input):
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+    def forward(self, input) -> minitorch.Tensor:
+        return minitorch.conv2d(input, self.weights.value) + self.bias.value
+        #raise NotImplementedError("Need to implement for Task 4.5")
 
 
 class Network(minitorch.Module):
@@ -67,12 +67,23 @@ class Network(minitorch.Module):
         self.mid = None
         self.out = None
 
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        self.conv_layer1 = Conv2d(1, 4, 3, 3)
+        self.conv_layer2 = Conv2d(4, 8, 3, 3)
+        self.linear_layer1 = Linear(392, 64)
+        self.linear_layer2 = Linear(64, C)
+
+        #raise NotImplementedError("Need to implement for Task 4.5")
 
     def forward(self, x):
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        
+        self.mid = self.conv_layer1.forward(x).relu()
+        self.out = self.conv_layer2.forward(self.mid).relu()
+        self.pool_out = minitorch.maxpool2d(self.out, (4,4))
+        BATCH, _, _, _ = self.pool_out.shape
+        self.linear_in = self.pool_out.view(BATCH, 392)
+        self.linear_mid = minitorch.dropout(self.linear_layer1.forward(self.linear_in).relu(), 0.25, not self.training)
+        return minitorch.logsoftmax(self.linear_layer2.forward(self.linear_mid), 1)
+        #raise NotImplementedError("Need to implement for Task 4.5")
 
 
 def make_mnist(start, stop):

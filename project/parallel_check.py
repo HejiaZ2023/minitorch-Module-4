@@ -2,6 +2,14 @@ from numba import njit
 
 import minitorch
 import minitorch.fast_ops
+import minitorch.fast_conv
+
+# tensor_conv2d(
+print("CONV2D")
+tmap = minitorch.fast_conv.tensor_conv2d
+out, weight, input = minitorch.zeros((10,10,10,10)), minitorch.zeros((10,10,10,10)),  minitorch.zeros((10,10,10,10))
+tmap(*out.tuple(), out.size, *input.tuple(), *weight.tuple(), False)
+print(tmap.parallel_diagnostics(level=3))
 
 # MAP
 print("MAP")

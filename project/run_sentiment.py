@@ -20,7 +20,7 @@ class Linear(minitorch.Module):
         self.bias = RParam(out_size)
         self.out_size = out_size
 
-    def forward(self, x):
+    def forward(self, x) -> minitorch.Tensor:
         batch, in_size = x.shape
         return (
             x.view(batch, in_size) @ self.weights.value.view(in_size, self.out_size)
@@ -33,9 +33,9 @@ class Conv1d(minitorch.Module):
         self.weights = RParam(out_channels, in_channels, kernel_width)
         self.bias = RParam(1, out_channels, 1)
 
-    def forward(self, input):
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+    def forward(self, input) -> minitorch.Tensor:
+        return minitorch.conv1d(input, self.weights.value) + self.bias.value
+        #raise NotImplementedError("Need to implement for Task 4.5")
 
 
 class CNNSentimentKim(minitorch.Module):
@@ -61,15 +61,30 @@ class CNNSentimentKim(minitorch.Module):
     ):
         super().__init__()
         self.feature_map_size = feature_map_size
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        self.embedding_size = embedding_size
+        self.filter_sizes = filter_sizes
+        self.dropout = dropout
+        self.conv1d_layers = [Conv1d(embedding_size, feature_map_size, filter_size) for filter_size in filter_sizes]
+        self.concat_weights = [minitorch.tensor([1, 0, 0], backend=BACKEND).view(1, 1, 3),
+                               minitorch.tensor([0, 1, 0], backend=BACKEND).view(1, 1, 3),
+                               minitorch.tensor([0, 0, 1], backend=BACKEND).view(1, 1, 3)]
+        self.linear_layer = Linear(3 * feature_map_size, 1)
+        
+        #raise NotImplementedError("Need to implement for Task 4.5")
 
-    def forward(self, embeddings):
+    def forward(self, embeddings: minitorch.Tensor):
         """
         embeddings tensor: [batch x sentence length x embedding dim]
         """
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        embeddings = embeddings.permute(0,2,1)
+        self.mid = [minitorch.max(conv1d_layer.forward(embeddings).relu(), 2) for conv1d_layer in self.conv1d_layers]
+        self.concat_list = [m * w for m, w in zip(self.mid, self.concat_weights)]
+        self.concat = self.concat_list[0] + self.concat_list[1] + self.concat_list[2]
+        BATCH, _, _ = self.concat.shape
+        self.end = self.concat.view(BATCH, 3 * self.feature_map_size)
+        self.out = minitorch.dropout(self.linear_layer.forward(self.end).relu(), 0.25, not self.training)
+        return self.out.sigmoid()
+        #raise NotImplementedError("Need to implement for Task 4.5")
 
 
 # Evaluation helper methods
@@ -257,7 +272,7 @@ if __name__ == "__main__":
     train_size = 450
     validation_size = 100
     learning_rate = 0.01
-    max_epochs = 250
+    max_epochs = 2
 
     (X_train, y_train), (X_val, y_val) = encode_sentiment_data(
         load_dataset("glue", "sst2"),

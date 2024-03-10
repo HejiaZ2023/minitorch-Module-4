@@ -87,7 +87,7 @@ def relu(x: float) -> float:
     # raise NotImplementedError("Need to implement for Task 0.1")
 
 
-EPS = 1e-10
+EPS = 1e-6
 
 
 def log(x: float) -> float:
@@ -102,31 +102,25 @@ def exp(x: float) -> float:
 
 def log_back(x: float, d: float) -> float:
     r"If $f = log$ as above, compute $d \times f'(x)$"
-    if abs(x) < EPS:
-        x = EPS
     return d / x
     # raise NotImplementedError("Need to implement for Task 0.1")
 
 
 def inv(x: float) -> float:
     "$f(x) = 1/x$"
-    if abs(x) < EPS:
-        x = EPS
     return 1.0 / x
     # raise NotImplementedError("Need to implement for Task 0.1")
 
 
 def inv_back(x: float, d: float) -> float:
     r"If $f(x) = 1/x$ compute $d \times f'(x)$"
-    if abs(x) < EPS:
-        x = EPS
     return -d / (x**2)
     # raise NotImplementedError("Need to implement for Task 0.1")
 
 
 def relu_back(x: float, d: float) -> float:
     r"If $f = relu$ compute $d \times f'(x)$"
-    return d if (x > 0) else 0.0
+    return d if x > 0.0 else 0.0
     # raise NotImplementedError("Need to implement for Task 0.1")
 
 

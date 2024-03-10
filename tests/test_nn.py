@@ -15,7 +15,7 @@ def test_avg(t: Tensor) -> None:
     assert_close(
         out[0, 0, 0, 0], sum([t[0, 0, i, j] for i in range(2) for j in range(2)]) / 4.0
     )
-
+    
     out = minitorch.avgpool2d(t, (2, 1))
     assert_close(
         out[0, 0, 0, 0], sum([t[0, 0, i, j] for i in range(2) for j in range(1)]) / 2.0
@@ -31,8 +31,19 @@ def test_avg(t: Tensor) -> None:
 @pytest.mark.task4_4
 @given(tensors(shape=(2, 3, 4)))
 def test_max(t: Tensor) -> None:
-    # TODO: Implement for Task 4.4.
-    raise NotImplementedError("Need to implement for Task 4.4")
+    out = minitorch.max(t, 0)
+    assert_close(
+        out[0, 0, 0], max([t[i, 0, 0] for i in range(2)])
+    )
+    out = minitorch.max(t, 1)
+    assert_close(
+        out[0, 0, 0], max([t[0, i, 0] for i in range(3)])
+    )
+    out = minitorch.max(t, 2)
+    assert_close(
+        out[0, 0, 0], max([t[0, 0, i] for i in range(4)])
+    )
+    #raise NotImplementedError("Need to implement for Task 4.4")
 
 
 @pytest.mark.task4_4

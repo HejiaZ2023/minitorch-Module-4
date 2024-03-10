@@ -80,8 +80,35 @@ def _tensor_conv1d(
     s1 = input_strides
     s2 = weight_strides
 
-    # TODO: Implement for Task 4.1.
-    raise NotImplementedError("Need to implement for Task 4.1")
+    for out_pos_raw in prange(out_size):
+        out_idx = np.empty_like(out_shape)
+        to_index(out_pos_raw, out_shape, out_idx)
+        out_pos = index_to_position(out_idx, out_strides)
+        input_start_pos = out_idx[0] * input_strides[0] + out_idx[2] * input_strides[2]
+        weight_start_pos = out_idx[1] * weight_strides[0]
+
+        out_sum = 0
+        for in_channel in prange(in_channels):
+            input_pos = input_start_pos + in_channel * input_strides[1]
+            weight_pos = weight_start_pos + in_channel * weight_strides[1]
+            if (reverse):
+                for conv_pos in prange(kw):
+                    if (out_idx[2] - conv_pos < 0):
+                        break
+                    out_sum += input[input_pos] * weight[weight_pos]
+                    input_pos -= input_strides[2]
+                    weight_pos += weight_strides[2]
+            else:
+                for conv_pos in prange(kw):
+                    if (conv_pos + out_idx[2] >= width):
+                        break
+                    out_sum += input[input_pos] * weight[weight_pos]
+                    input_pos += input_strides[2]
+                    weight_pos += weight_strides[2]
+        out[out_pos] = out_sum
+
+    return
+    #raise NotImplementedError("Need to implement for Task 4.1")
 
 
 tensor_conv1d = njit(parallel=True)(_tensor_conv1d)
@@ -206,8 +233,46 @@ def _tensor_conv2d(
     s10, s11, s12, s13 = s1[0], s1[1], s1[2], s1[3]
     s20, s21, s22, s23 = s2[0], s2[1], s2[2], s2[3]
 
-    # TODO: Implement for Task 4.2.
-    raise NotImplementedError("Need to implement for Task 4.2")
+    
+    for out_pos_raw in prange(out_size):
+        out_idx = np.empty_like(out_shape)
+        to_index(out_pos_raw, out_shape, out_idx)
+        out_pos = index_to_position(out_idx, out_strides)
+        input_start_pos = out_idx[0] * s10 + out_idx[2] * s12 + out_idx[3] * s13
+        weight_start_pos = out_idx[1] * s20
+
+        out_sum = 0
+        
+        for in_channel in prange(in_channels):
+            input_channel_pos = input_start_pos + in_channel * s11
+            weight_channel_pos = weight_start_pos + in_channel * s21
+            if (reverse):
+                for h_conv in prange(kh):
+                    if (h_conv > out_idx[2]):
+                        break
+                    for w_conv in prange(kw):
+                        if (w_conv > out_idx[3]):
+                            break
+                        input_pos = input_channel_pos - h_conv * s12 - w_conv * s13
+                        weight_pos = weight_channel_pos + h_conv * s22 + w_conv * s23
+                        out_sum += input[input_pos] * weight[weight_pos]
+            
+            else:
+                for h_conv in prange(kh):
+                    if (out_idx[2] + h_conv >= height):
+                        break
+                    
+                    for w_conv in prange(kw):
+                        if (out_idx[3] + w_conv >= width):
+                            break
+                        input_pos = input_channel_pos + h_conv * s12 + w_conv * s13
+                        weight_pos = weight_channel_pos + h_conv * s22 + w_conv * s23
+                        out_sum += input[input_pos] * weight[weight_pos]
+            
+        out[out_pos] = out_sum
+    #raise NotImplementedError("Need to implement for Task 4.2")
+    
+    return
 
 
 tensor_conv2d = njit(parallel=True, fastmath=True)(_tensor_conv2d)
