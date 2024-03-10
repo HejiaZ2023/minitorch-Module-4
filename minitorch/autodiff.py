@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Iterable, List, Tuple
+from typing import Any, Dict, Iterable, Tuple
 
 from typing_extensions import Protocol
 
@@ -22,7 +22,11 @@ def central_difference(f: Any, *vals: Any, arg: int = 0, epsilon: float = 1e-6) 
     Returns:
         An approximation of $f'_i(x_0, \ldots, x_{n-1})$
     """
-    raise NotImplementedError("Need to include this file from past assignment.")
+
+    vals0 = [(vals[i] - epsilon if i == arg else vals[i]) for i in range(len(vals))]
+    vals1 = [(vals[i] + epsilon if i == arg else vals[i]) for i in range(len(vals))]
+    return (f(*vals1) - f(*vals0)) / (2 * epsilon)
+    # raise NotImplementedError("Need to implement for Task 1.1")
 
 
 variable_count = 1
@@ -60,7 +64,26 @@ def topological_sort(variable: Variable) -> Iterable[Variable]:
     Returns:
         Non-constant Variables in topological order starting from the right.
     """
-    raise NotImplementedError("Need to include this file from past assignment.")
+    d: Dict[int, int] = dict()
+    var_id_dict: Dict[int, Variable] = dict()
+
+    def process_var(var: Variable, d: Dict[int, int], iters: int) -> None:
+        d[var.unique_id] = iters
+        var_id_dict[var.unique_id] = var
+        assert iters < len(d)
+        iters += 1
+        if var.is_constant():
+            return
+        # assert var.history is not None, f"type: {type(var)}, tuple: {var.tuple()}"
+        for p in var.parents:
+            if (p.unique_id in d) and (d[p.unique_id] > iters):
+                continue
+            process_var(p, d, iters)
+
+    process_var(variable, d, 0)
+    ret = sorted(d.items(), key=lambda item: item[1])
+    return [var_id_dict[p[0]] for p in ret]
+    # raise NotImplementedError("Need to implement for Task 1.4")
 
 
 def backpropagate(variable: Variable, deriv: Any) -> None:
@@ -74,7 +97,23 @@ def backpropagate(variable: Variable, deriv: Any) -> None:
 
     No return. Should write to its results to the derivative values of each leaf through `accumulate_derivative`.
     """
-    raise NotImplementedError("Need to include this file from past assignment.")
+    var_list = topological_sort(variable)
+    var_id_dict: Dict[int, Variable] = dict()
+    deriv_dict: Dict[int, Any] = dict()
+    for var in var_list:
+        var_id_dict[var.unique_id] = var
+        deriv_dict[var.unique_id] = 0
+    deriv_dict[variable.unique_id] += deriv
+    for var in var_list:
+        if var.is_leaf():
+            var.accumulate_derivative(deriv_dict[var.unique_id])
+            continue
+        if var.is_constant():
+            continue
+        t = var.chain_rule(deriv_dict[var.unique_id])
+        for parent, parent_deriv in t:
+            deriv_dict[parent.unique_id] += parent_deriv
+    # raise NotImplementedError("Need to implement for Task 1.4")
 
 
 @dataclass

@@ -1,22 +1,20 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Optional, Type
 
 import numpy as np
 from typing_extensions import Protocol
 
 from . import operators
-from .tensor_data import (
-    MAX_DIMS,
+from .tensor_data import (  # MAX_DIMS,; to_index,
     broadcast_index,
     index_to_position,
     shape_broadcast,
-    to_index,
 )
 
 if TYPE_CHECKING:
     from .tensor import Tensor
-    from .tensor_data import Index, Shape, Storage, Strides
+    from .tensor_data import Shape, Storage, Strides
 
 
 class MapProto(Protocol):
@@ -222,7 +220,17 @@ class SimpleOps(TensorOps):
 
     @staticmethod
     def matrix_multiply(a: "Tensor", b: "Tensor") -> "Tensor":
-        raise NotImplementedError("Not implemented in this assignment")
+        dim0 = a.shape[0]
+        dim1 = a.shape[1]
+        assert b.shape[0] == dim1
+        dim2 = b.shape[1]
+
+        a = a.view(dim0, dim1, 1)
+        b = b.view(1, dim1, dim2)
+        c = SimpleOps.zip(operators.mul)(a, b)
+        c = SimpleOps.reduce(operators.add)(c, 1)
+        return c
+        # raise NotImplementedError("Not implemented in this assignment")
 
     is_cuda = False
 
@@ -230,9 +238,7 @@ class SimpleOps(TensorOps):
 # Implementations.
 
 
-def tensor_map(
-    fn: Callable[[float], float]
-) -> Callable[[Storage, Shape, Strides, Storage, Shape, Strides], None]:
+def tensor_map(fn: Callable[[float], float]) -> Any:
     """
     Low-level implementation of tensor map between
     tensors with *possibly different strides*.
@@ -251,9 +257,15 @@ def tensor_map(
 
     Args:
         fn: function from float-to-float to apply
+        out (array): storage for out tensor
+        out_shape (array): shape for out tensor
+        out_strides (array): strides for out tensor
+        in_storage (array): storage for in tensor
+        in_shape (array): shape for in tensor
+        in_strides (array): strides for in tensor
 
     Returns:
-        Tensor map function.
+        None : Fills in `out`
     """
 
     def _map(
@@ -264,16 +276,18 @@ def tensor_map(
         in_shape: Shape,
         in_strides: Strides,
     ) -> None:
-        raise NotImplementedError("Need to include this file from past assignment.")
+        for out_idx in np.ndindex(tuple(out_shape)):
+            out_pos = index_to_position(out_idx, out_strides)
+            in_idx = np.array(in_shape)
+            broadcast_index(out_idx, out_shape, in_shape, in_idx)
+            in_pos = index_to_position(in_idx, in_strides)
+            out[out_pos] = fn(in_storage[in_pos])
+        # raise NotImplementedError("Need to implement for Task 2.3")
 
     return _map
 
 
-def tensor_zip(
-    fn: Callable[[float, float], float]
-) -> Callable[
-    [Storage, Shape, Strides, Storage, Shape, Strides, Storage, Shape, Strides], None
-]:
+def tensor_zip(fn: Callable[[float, float], float]) -> Any:
     """
     Low-level implementation of tensor zip between
     tensors with *possibly different strides*.
@@ -292,9 +306,18 @@ def tensor_zip(
 
     Args:
         fn: function mapping two floats to float to apply
+        out (array): storage for `out` tensor
+        out_shape (array): shape for `out` tensor
+        out_strides (array): strides for `out` tensor
+        a_storage (array): storage for `a` tensor
+        a_shape (array): shape for `a` tensor
+        a_strides (array): strides for `a` tensor
+        b_storage (array): storage for `b` tensor
+        b_shape (array): shape for `b` tensor
+        b_strides (array): strides for `b` tensor
 
     Returns:
-        Tensor zip function.
+        None : Fills in `out`
     """
 
     def _zip(
@@ -308,14 +331,21 @@ def tensor_zip(
         b_shape: Shape,
         b_strides: Strides,
     ) -> None:
-        raise NotImplementedError("Need to include this file from past assignment.")
+        for out_idx in np.ndindex(tuple(out_shape)):
+            out_pos = index_to_position(out_idx, out_strides)
+            a_idx = np.array(a_shape)
+            broadcast_index(out_idx, out_shape, a_shape, a_idx)
+            a_pos = index_to_position(a_idx, a_strides)
+            b_idx = np.array(b_shape)
+            broadcast_index(out_idx, out_shape, b_shape, b_idx)
+            b_pos = index_to_position(b_idx, b_strides)
+            out[out_pos] = fn(a_storage[a_pos], b_storage[b_pos])
+        # raise NotImplementedError("Need to implement for Task 2.3")
 
     return _zip
 
 
-def tensor_reduce(
-    fn: Callable[[float, float], float]
-) -> Callable[[Storage, Shape, Strides, Storage, Shape, Strides, int], None]:
+def tensor_reduce(fn: Callable[[float, float], float]) -> Any:
     """
     Low-level implementation of tensor reduce.
 
@@ -324,9 +354,16 @@ def tensor_reduce(
 
     Args:
         fn: reduction function mapping two floats to float
+        out (array): storage for `out` tensor
+        out_shape (array): shape for `out` tensor
+        out_strides (array): strides for `out` tensor
+        a_storage (array): storage for `a` tensor
+        a_shape (array): shape for `a` tensor
+        a_strides (array): strides for `a` tensor
+        reduce_dim (int): dimension to reduce out
 
     Returns:
-        Tensor reduce function.
+        None : Fills in `out`
     """
 
     def _reduce(
@@ -338,7 +375,18 @@ def tensor_reduce(
         a_strides: Strides,
         reduce_dim: int,
     ) -> None:
-        raise NotImplementedError("Need to include this file from past assignment.")
+
+        reduce_len: int = a_shape[reduce_dim]
+        reduce_stride = a_strides[reduce_dim]
+
+        for out_idx in np.ndindex(tuple(out_shape)):
+            out_pos = index_to_position(out_idx, out_strides)
+            a_start_pos = index_to_position(out_idx, a_strides)
+            a_end_pos = a_start_pos + reduce_stride * reduce_len
+            for a_pos in range(a_start_pos, a_end_pos, reduce_stride):
+                out[out_pos] = fn(out[out_pos], a_storage[a_pos])
+
+        # raise NotImplementedError("Need to implement for Task 2.3")
 
     return _reduce
 
